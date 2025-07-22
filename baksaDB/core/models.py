@@ -22,7 +22,7 @@ class Table:
 
     def __init__(self, name: str, fields: List[Field]):
         self.name = name
-        self.fields = fields
+        self.field_list = fields
         self.data = []
 
         for f in fields:
@@ -34,12 +34,12 @@ class Table:
                 f"Table '{name}' must have one primary key field.")
 
     def __repr__(self):
-        fields_repr = "\n".join(repr(f) for f in self.fields)
+        fields_repr = "\n".join(repr(f) for f in self.field_list)
         return f"<Table \"{self.name}\">\n{fields_repr}"
 
     def insert(self, row: Dict[str, Any]):
         # check any missing fields
-        for field in self.fields:
+        for field in self.field_list:
             if field.name not in row:
                 raise ValueError(f"Missing value for field '{field.name}'")
 
@@ -58,19 +58,10 @@ class Table:
                 for k, v in updates.items():
                     if k == self.primary_key_field:
                         raise ValueError("Cannot update primary key field")
-                    if k not in [f.name for f in self.fields]:
+                    if k not in [f.name for f in self.field_list]:
                         raise ValueError(
                             f"Field '{k}' does not exist in table")
                     row[k] = v
                 updated = True
                 break
         return updated
-
-    def add_column(self, field: Field):
-        # Check field name uniqueness
-        if any(f.name == field.name for f in self.fields):
-            raise ValueError(f"Field '{field.name}' already exists")
-        self.fields.append(field)
-        # Add default None values for existing rows for new column
-        for row in self.data:
-            row[field.name] = None
