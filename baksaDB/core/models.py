@@ -1,4 +1,5 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+from ..indexing.hash_index import HashIndex
 
 
 class Field:
@@ -23,8 +24,10 @@ class Table:
     def __init__(self, name: str, fields: List[Field]):
         self.name = name
         self.field_list = fields
-        self.data = []
+        self.data: List[Dict[str, Any]] = []
+        self.hash_index = HashIndex()
 
+        # fill the fields
         for f in fields:
             if f.is_primary:
                 self.primary_key_field = f.name
@@ -32,6 +35,12 @@ class Table:
         if not self.primary_key_field:
             raise ValueError(
                 f"Table '{name}' must have one primary key field.")
+
+        # fill hash index
+        for row in self.data:
+            # NOTE: this is important
+            # we are inserting the reference, not the WHOLE row data
+            self.hash_index.insert(row[self.primary_key_field], row)
 
     def __repr__(self):
         fields_repr = "\n".join(repr(f) for f in self.field_list)
