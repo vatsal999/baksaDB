@@ -9,6 +9,31 @@ def validate_type(typ: str) -> bool:
     return typ in {"int", "double", "bool", "string"}
 
 
+def get_primary_key_type(table):
+    for f in table.fields:
+        if f.is_primary:
+            return f.type
+    raise ValueError("Primary key field not found")
+
+
+def cast_pk_value(pk_str, table):
+    pk_type = get_primary_key_type(table)
+    return convert_value_to_type(pk_str, pk_type)
+
+
+def convert_value_to_type(value_str, field_type):
+    if field_type == "int":
+        return int(value_str)
+    elif field_type == "double":
+        return float(value_str)
+    elif field_type == "bool":
+        return value_str.lower() in ("1", "true", "yes", "y", "t")
+    elif field_type == "string":
+        return value_str
+    else:
+        return value_str  # default fallback
+
+
 def parse_schema(schema_str: str) -> List[Field]:
     fields = []
     parts = schema_str.split(',')
@@ -65,6 +90,19 @@ def parse_args(args: List[str]) -> Dict:
     result = {"operation": operation}
 
     match operation:
+        case "PRINT":
+            if len(args) < 3:
+                raise ValueError("PRINT requires the table name in quotes")
+            table_name = args[2]
+            result["table_name"] = table_name
+        case "FIND":
+            if len(args) < 4:
+                raise ValueError(
+                    "FIND requires table name and primary key value")
+
+            table_name = args[2]
+            pk_value = args[3]
+            result.update({"table_name": table_name, "pk_value": pk_value})
         case "TABLES":
             pass
         case "CREATE":
@@ -149,7 +187,38 @@ def main():
         cmd = parse_args(sys.argv)
         op = cmd["operation"]
 
-        if op == "CREATE":
+        if op == "PRINT":
+            table = db.get_table(cmd["table_name"])
+            if not table:
+                print(f"Table '{cmd['table_name']}' not found")
+                return
+            if not table.data:
+                print(f"Table '{cmd['table_name']}' is empty.")
+                return
+
+            print(f"All records from table '{cmd['table_name']}':")
+            # Print header (field names)
+            field_names = [f.name for f in table.fields]
+            print("\t".join(field_names))
+            # Print rows
+            for row in table.data:
+                print("\t".join(str(row.get(f, "")) for f in field_names))
+        elif op == "FIND":
+            table = db.get_table(cmd["table_name"])
+            if not table:
+                print(f"Table '{cmd['table_name']}' not found")
+                return
+
+            pk_value = cast_pk_value(cmd["pk_value"], table)
+            row = table.find_row(pk_value)
+            if row is None:
+                print(f"Row with primary key {
+                      cmd['pk_value']} not found in table '{cmd['table_name']}'")
+            else:
+                print("Found row:")
+                for k, v in row.items():
+                    print(f"  {k}: {v}")
+        elif op == "CREATE":
             table = db.create_table(cmd["table_name"], cmd["schema"])
             print(f"Created table:\n{table}")
 

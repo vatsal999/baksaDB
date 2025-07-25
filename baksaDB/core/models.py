@@ -23,7 +23,7 @@ class Table:
 
     def __init__(self, name: str, fields: List[Field]):
         self.name = name
-        self.field_list = fields
+        self.fields = fields
         self.data: List[Dict[str, Any]] = []
         self.hash_index = HashIndex()
 
@@ -43,12 +43,12 @@ class Table:
             self.hash_index.insert(row[self.primary_key_field], row)
 
     def __repr__(self):
-        fields_repr = "\n".join(repr(f) for f in self.field_list)
+        fields_repr = "\n".join(repr(f) for f in self.fields)
         return f"<Table \"{self.name}\">\n{fields_repr}"
 
     def insert(self, row: Dict[str, Any]):
         # check any missing fields
-        for field in self.field_list:
+        for field in self.fields:
             if field.name not in row:
                 raise ValueError(f"Missing value for field '{field.name}'")
 
@@ -80,16 +80,21 @@ class Table:
         for k, v in updates.items():
             if k == self.primary_key_field:
                 raise ValueError("Cannot update primary key field")
-            if k not in [f.name for f in self.field_list]:
+            if k not in [f.name for f in self.fields]:
                 raise ValueError(f"Field '{k}' does not exist in table")
             row[k] = v
         return True
 
     def add_column(self, field: Field):
         # Check field name uniqueness
-        if any(f.name == field.name for f in self.field_list):
+        if any(f.name == field.name for f in self.fields):
             raise ValueError(f"Field '{field.name}' already exists")
-        self.field_list.append(field)
+        self.fields.append(field)
         # Add default None values for existing rows for new column
         for row in self.data:
             row[field.name] = None
+
+    def rebuild_hash_index(self):
+        self.hash_index = HashIndex()
+        for row in self.data:
+            self.hash_index.insert(row[self.primary_key_field], row)
