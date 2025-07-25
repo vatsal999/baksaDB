@@ -52,25 +52,44 @@ class Table:
             if field.name not in row:
                 raise ValueError(f"Missing value for field '{field.name}'")
 
+        pk_val = row[self.primary_key_field]
+
         self.data.append(row)
+        self.hash_index.insert(pk_val, row)
+
+    def find_row(self, pk: Any) -> Optional[Dict[str, Any]]:
+        return self.hash_index.find_by_key(pk)
 
     def delete_row(self, pk_value: Any) -> bool:
+        # first we will delete from hash index
+        deleted_in_index = self.hash_index.delete(pk_value)
+        if not deleted_in_index:
+            return False
+
+        # now remove from data list
         initial_len = len(self.data)
         self.data = [
             r for r in self.data if r[self.primary_key_field] != pk_value]
         return len(self.data) < initial_len
 
     def update_row(self, pk_value: Any, updates: Dict[str, Any]) -> bool:
-        updated = False
+        row = self.hash_index.find_by_key(pk_value)
+        if row is None:
+            return False
+
+        for k, v in updates.items():
+            if k == self.primary_key_field:
+                raise ValueError("Cannot update primary key field")
+            if k not in [f.name for f in self.field_list]:
+                raise ValueError(f"Field '{k}' does not exist in table")
+            row[k] = v
+        return True
+
+    def add_column(self, field: Field):
+        # Check field name uniqueness
+        if any(f.name == field.name for f in self.field_list):
+            raise ValueError(f"Field '{field.name}' already exists")
+        self.field_list.append(field)
+        # Add default None values for existing rows for new column
         for row in self.data:
-            if row[self.primary_key_field] == pk_value:
-                for k, v in updates.items():
-                    if k == self.primary_key_field:
-                        raise ValueError("Cannot update primary key field")
-                    if k not in [f.name for f in self.field_list]:
-                        raise ValueError(
-                            f"Field '{k}' does not exist in table")
-                    row[k] = v
-                updated = True
-                break
-        return updated
+            row[field.name] = None
