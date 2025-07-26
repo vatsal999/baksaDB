@@ -43,10 +43,10 @@ class HashIndex:
                 return
             if current.next is None:
                 break
-            current = current.net
+            current = current.next
         current.next = Node(key, row_ref)
 
-    def find(self, key):
+    def find_by_key(self, key):
         idx = self._hash(key)
         current = self.buckets[idx]
         # linkedlist trav and search the key
@@ -72,3 +72,23 @@ class HashIndex:
             prev = current
             current = current.next
         return False
+
+    def __repr__(self):
+        s = []
+        for i, b in enumerate(self.buckets):
+            head = b
+            if not head:
+                continue
+
+            s.append(f"{i} == [")
+            while head:
+                s.append(f"{head.key},")
+                head = head.next
+
+            s.append("]\n")
+
+        my_rep = ''.join(s)
+        if len(my_rep) == 0:
+            return "Empty Hash Index"
+
+        return my_rep

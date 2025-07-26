@@ -75,6 +75,8 @@ class FileStorage:
                     typed_row[field.name] = typed_val
                 table.data.append(typed_row)
 
+        # for rebuilding hash index
+        table.rebuild_hash_index()
         return table
 
     def delete_table(self, table_name: str) -> None:
